@@ -14,7 +14,6 @@ from compressed_tensors.utils import (
 from loguru import logger
 from pydantic import ConfigDict, PrivateAttr, model_validator
 from torch.nn import Module
-from operator import attrgetter
 from tqdm import tqdm
 
 from llmcompressor.core import Event, EventType, State
@@ -324,14 +323,16 @@ class AWQModifier(Modifier, QuantizationMixin):
                 smooth_layer = smooth_layers[smooth_name]
 
                 smooth_parent_name = ".".join(smooth_name.split(".")[:-1])
-                smooth_parent = attrgetter(smooth_parent_name)(model) if smooth_parent_name else model
+                smooth_parent = (
+                    model if smooth_parent_name == "" else model.get_submodule(smooth_parent_name)
+                )
 
                 balance_layers, balance_names = [], []
                 for balance_regex in mapping.balance_layers:
                     # find the submodules that match the activation layer
                     for balance_suffix, balance_layer in match_named_modules(
-                        balance_regex,
                         smooth_parent,
+                        balance_regex,
                         exclude_internal_modules=True,
                     ).items():
                         balance_name = f"{smooth_parent_name}.{balance_suffix}"
@@ -766,7 +767,7 @@ def get_lowest_common_parent(names: List[str], module: Module) -> Tuple[str, Mod
     while True:
         if parent_name == "":
             return "", module
-        parent = attrgetter(parent_name)(module)
+        parent = module.get_submodule(parent_name)
         if not isinstance(parent, torch.nn.ModuleList):
             return parent_name, parent
         parent_name = ".".join(parent_name.split(".")[:-1])

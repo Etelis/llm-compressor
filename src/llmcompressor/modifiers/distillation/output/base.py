@@ -61,8 +61,8 @@ class OutputDistillationModifier(Modifier):
             else:
                 model_target, teacher_target = target, target
 
-            model_layers = match_named_modules(model_target, state.model)
-            teacher_layers = match_named_modules(teacher_target, state.teacher_model)
+            model_layers = match_named_modules(state.model, model_target)
+            teacher_layers = match_named_modules(state.teacher_model, teacher_target)
 
             if len(model_layers) < 1:
                 raise ValueError(f"no model layers found for target {target}")
