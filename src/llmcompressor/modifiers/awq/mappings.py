@@ -23,34 +23,43 @@ class AWQMapping:
 
 
 _default_mappings = [
+    # Attention block mappings
+    # Note: v_proj -> o_proj comes BEFORE input_layernorm -> [q,k,v] so that
+    # v_proj is used as smooth layer first, then as balance layer. This ensures
+    # the final quantization parameters for v_proj are computed on its final weights.
+    AWQMapping("re:.*v_proj$", ["re:.*o_proj$"]),
     AWQMapping(
         "re:.*input_layernorm$",
         ["re:.*q_proj$", "re:.*k_proj$", "re:.*v_proj$"],
     ),
-    AWQMapping("re:.*v_proj$", ["re:.*o_proj$"]),
+    # MLP block mappings
+    # Note: up_proj -> down_proj comes BEFORE post_attention_layernorm -> [gate,up]
+    # for the same reason as above.
+    AWQMapping(
+        "re:.*up_proj$",
+        ["re:.*down_proj$"],
+    ),
     AWQMapping(
         "re:.*post_attention_layernorm$",
         ["re:.*gate_proj$", "re:.*up_proj$"],
     ),
-    AWQMapping(
-        "re:.*up_proj$",
-        ["re:.*down_proj$"],
-    ),
 ]
 
 _moe_default_mappings = [
+    # Attention block mappings (topologically ordered)
+    AWQMapping("re:.*v_proj$", ["re:.*o_proj$"]),
     AWQMapping(
         "re:.*input_layernorm$",
         ["re:.*q_proj$", "re:.*k_proj$", "re:.*v_proj$"],
     ),
-    AWQMapping("re:.*v_proj$", ["re:.*o_proj$"]),
-    AWQMapping(
-        "re:.*post_attention_layernorm$",
-        ["re:.*mlp.experts.*.gate_proj$", "re:.*mlp.experts.*.up_proj$"],
-    ),
+    # MLP block mappings (topologically ordered)
     AWQMapping(
         "re:.*up_proj$",
         ["re:.*down_proj$"],
+    ),
+    AWQMapping(
+        "re:.*post_attention_layernorm$",
+        ["re:.*mlp.experts.*.gate_proj$", "re:.*mlp.experts.*.up_proj$"],
     ),
 ]
 
@@ -58,18 +67,20 @@ _moe_default_mappings = [
 #  q, k, and v proj layers into a single qkv_proj layer
 #  gate and up proj layers into a single gate_up_proj layer
 _phi_mappings = [
+    # Attention block mappings (topologically ordered)
+    AWQMapping("re:.*qkv_proj$", ["re:.*o_proj$"]),
     AWQMapping(
         "re:.*input_layernorm$",
         ["re:.*qkv_proj$"],
     ),
-    AWQMapping("re:.*qkv_proj$", ["re:.*o_proj$"]),
-    AWQMapping(
-        "re:.*post_attention_layernorm$",
-        ["re:.*gate_up_proj$"],
-    ),
+    # MLP block mappings (topologically ordered)
     AWQMapping(
         "re:.*gate_up_proj$",
         ["re:.*down_proj$"],
+    ),
+    AWQMapping(
+        "re:.*post_attention_layernorm$",
+        ["re:.*gate_up_proj$"],
     ),
 ]
 
@@ -77,18 +88,20 @@ _phi_mappings = [
 #  post_attention_layernorm and the mlp down/gate proj layers
 #  use that instead of post_attention_layernorm in 3rd mapping:
 _gemma_mappings = [
+    # Attention block mappings (topologically ordered)
+    AWQMapping("re:.*v_proj$", ["re:.*o_proj$"]),
     AWQMapping(
         "re:.*input_layernorm$",
         ["re:.*q_proj$", "re:.*k_proj$", "re:.*v_proj$"],
     ),
-    AWQMapping("re:.*v_proj$", ["re:.*o_proj$"]),
-    AWQMapping(
-        "re:.*pre_feedforward_layernorm$",
-        ["re:.*gate_proj$", "re:.*up_proj$"],
-    ),
+    # MLP block mappings (topologically ordered)
     AWQMapping(
         "re:.*up_proj$",
         ["re:.*down_proj$"],
+    ),
+    AWQMapping(
+        "re:.*pre_feedforward_layernorm$",
+        ["re:.*gate_proj$", "re:.*up_proj$"],
     ),
 ]
 
@@ -98,6 +111,13 @@ _gemma_mappings = [
 # through input_layernorm and then from there it goes directly to the attention
 # module and to the MLP module.
 _cohere_mappings = [
+    # Topologically ordered: smooth-layer-first mappings come before
+    # balance-layer mappings for layers that appear in both roles
+    AWQMapping("re:.*v_proj$", ["re:.*o_proj$"]),
+    AWQMapping(
+        "re:.*up_proj$",
+        ["re:.*down_proj$"],
+    ),
     AWQMapping(
         "re:.*input_layernorm$",
         [
@@ -107,11 +127,6 @@ _cohere_mappings = [
             "re:.*mlp.gate_proj$",
             "re:.*mlp.up_proj$",
         ],
-    ),
-    AWQMapping("re:.*v_proj$", ["re:.*o_proj$"]),
-    AWQMapping(
-        "re:.*up_proj$",
-        ["re:.*down_proj$"],
     ),
 ]
 
@@ -124,11 +139,12 @@ _deepseek_mappings = [
     ),
     AWQMapping("re:.*q_a_layernorm$", ["re:.*q_b_proj$"]),
     AWQMapping("re:.*kv_a_layernorm$", ["re:.*kv_b_proj$"]),
+    # MLP block mappings (topologically ordered)
+    AWQMapping("re:.*up_proj$", ["re:.*down_proj$"]),
     AWQMapping(
         "re:.*post_attention_layernorm$",
         ["re:.*gate_proj$", "re:.*up_proj$"],
     ),
-    AWQMapping("re:.*up_proj$", ["re:.*down_proj$"]),
 ]
 
 _bloom_mappings = [
