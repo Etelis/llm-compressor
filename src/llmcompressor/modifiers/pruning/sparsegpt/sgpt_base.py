@@ -112,7 +112,7 @@ class SparsityModifierBase(Modifier):
 
         # infer module and sequential targets
         self.sequential_targets = self._infer_sequential_targets(model)
-        layers = dict(match_named_modules(model, [self.sequential_targets]))
+        layers = dict(match_named_modules(model, self.sequential_targets))
         self._target_layers = dict(
             match_named_modules(model, self.targets)
         )  # layers containing targets
